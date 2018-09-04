@@ -63,7 +63,7 @@ if (config.type === 'browserify' && !config.entryPoint) {
   config.entryPoint = ast.body[0].expression.arguments[2].elements[0].value;
 }
 
-if (config.entryPoint === undefined) {
+if (config.entryPoint === undefined && config.dynamicEntryPoint === undefined) {
   throw new Error('config.entryPoint is a required parameter that indicated the entry point in the bundle.');
 }
 
@@ -106,6 +106,29 @@ if (config.type === 'browserify') {
 
 
 
+
+
+
+let entryPoint;
+if(config.dynamicEntryPoint) {
+    let entryModules = ast;
+    let entryPathTriedSoFar = [];
+    while (true) {
+        let operation = config.dynamicEntryPoint.shift();
+        if (!entryModules) {
+            throw new Error(`Locating the dynamic entry point failed. We got as far as ${entryPathTriedSoFar.join('.')} before an error occured.`);
+        } else if (operation === undefined) {
+            break;
+        } else {
+            entryModules = entryModules[operation];
+            entryPathTriedSoFar.push(operation);
+        }
+    }
+    entryPoint = entryModules.value
+} else {
+  entryPoint = config.entryPoint;
+}
+
 // ------------------------------------------------------------------------------
 // Transform the module id in each require call into a relative path to the module.
 // var a = require(1) => var a = require('./path/to/a')
@@ -113,7 +136,7 @@ if (config.type === 'browserify') {
 
 console.log('* Reassembling requires...');
 const transformRequires = require('./transformRequires');
-modules = transformRequires(modules, config.knownPaths, config.entryPoint, config.type, config.replaceRequires);
+modules = transformRequires(modules, config.knownPaths, entryPoint, config.type, config.replaceRequires);
 
 // ------------------------------------------------------------------------------
 // Take the array of modules and figure out where to put each module on disk.
@@ -125,7 +148,7 @@ const lookupTableResolver = require('./lookupTable');
 const files = lookupTableResolver(
   modules,
   config.knownPaths,
-  config.entryPoint,
+  entryPoint,
   config.type,
   outputLocation
 );

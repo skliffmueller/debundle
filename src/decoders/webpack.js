@@ -15,16 +15,25 @@ const replace = require('../extern/replace-method');
 // ])
 function webpackDecoder(moduleArrayAST, knownPaths) {
   // Ensure that the bit of AST being passed is an array
-  if (moduleArrayAST.type !== 'ArrayExpression') {
+  if (moduleArrayAST.type !== 'ArrayExpression' && moduleArrayAST.type !== 'ObjectExpression') {
     throw new Error(`The root level IIFE didn't have an array for it's first parameter, aborting...`);
   }
-
-  return moduleArrayAST.elements.map((moduleDescriptor, id) => {
-    return {
-      id,
-      code: moduleDescriptor,
-    };
-  }).filter(i => i.code);
+  if (moduleArrayAST.type === 'ArrayExpression') {
+      return moduleArrayAST.elements.map((moduleDescriptor, id) => {
+          return {
+              id,
+              code: moduleDescriptor,
+          };
+      }).filter(i => i.code);
+  }
+  if (moduleArrayAST.type === 'ObjectExpression') {
+    return moduleArrayAST.properties.map((moduleDescriptor) => {
+        return {
+            id: Number(moduleDescriptor.key.value),
+            code: moduleDescriptor.value,
+        };
+    }).filter(i => i.code);
+  }
 }
 
 function getModuleFileName(node, knownPaths) {
